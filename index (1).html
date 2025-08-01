@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>海信家电SFA系统 (交互增强版)</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heatmap.js@2.0.5/build/heatmap.min.js"></script>
+    <style>
+        :root {
+            --hisense-green: #009EA1;
+            --hisense-green-light: #00b3ac;
+            --hisense-green-dark: #007f82;
+            --hisense-gray: #f5f5f5;
+            --hisense-text: #333333;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+            color: var(--hisense-text);
+            background-color: #f5f5f5;
+            min-height: 100vh;
+            padding-bottom: 70px;
+        }
+
+        .hisense-green { background-color: var(--hisense-green); }
+        .hisense-green-text { color: var(--hisense-green); }
+        .hisense-green-border { border-color: var(--hisense-green); }
+
+        .nav-item { flex: 1; text-align: center; padding: 8px 0; font-size: 0.8rem; transition: all 0.3s ease; }
+        .nav-item:hover { background-color: rgba(0, 158, 161, 0.1); }
+        .nav-item.active { color: var(--hisense-green); position: relative; }
+        .nav-item.active::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 60%; height: 3px; background-color: var(--hisense-green); border-radius: 10px; }
+        .nav-item i { font-size: 1.2rem; margin-bottom: 2px; }
+
+        .module-content, .tab-panel { display: none; animation: fadeIn 0.3s ease-out; }
+        .module-content.active, .tab-panel.active { display: block; }
+
+        .card { background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); margin-bottom: 16px; overflow: hidden; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); }
+
+        .btn-primary { background-color: var(--hisense-green); color: white; padding: 10px 20px; border-radius: 5px; font-weight: 500; transition: all 0.3s ease; border: none; cursor: pointer; }
+        .btn-primary:hover { background-color: var(--hisense-green-dark); transform: translateY(-2px); box-shadow: 0 3px 8px rgba(0, 158, 161, 0.3); }
+        .btn-outline { border: 1px solid var(--hisense-green); color: var(--hisense-green); padding: 8px 16px; border-radius: 5px; background: white; transition: all 0.3s ease; cursor: pointer; }
+        .btn-outline:hover { background-color: rgba(0, 158, 161, 0.1); transform: translateY(-2px); }
+        .btn-disabled { background-color: #ccc; color: #666; cursor: not-allowed; }
+        .btn-disabled:hover { transform: none; box-shadow: none; }
+
+        .badge { background: var(--hisense-green); color: white; border-radius: 20px; padding: 3px 10px; font-size: 0.75rem; }
+        
+        .mobile-container { max-width: 450px; margin: 0 auto; background: white; box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); overflow: hidden; position: relative; }
+        .status-bar { height: 24px; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center; padding: 0 12px; font-size: 0.75rem; color: #666; }
+        
+        .search-box { position: relative; }
+        .search-box input { width: 100%; padding: 10px 10px 10px 40px; border: 1px solid #ddd; border-radius: 20px; background-color: white; font-size: 0.9rem; transition: all 0.3s ease; }
+        .search-box input:focus { border-color: var(--hisense-green); box-shadow: 0 0 0 3px rgba(0, 158, 161, 0.1); outline: none; }
+        .search-box i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #999; }
+
+        .filter-container { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .filter-title { font-weight: 500; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+        .filter-options { display: flex; flex-wrap: wrap; gap: 10px; }
+        .filter-option { background: #f5f5f5; border-radius: 20px; padding: 5px 15px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; }
+        .filter-option.active { background-color: var(--hisense-green); color: white; }
+
+        .loading { display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .loading-spinner { width: 24px; height: 24px; border: 3px solid rgba(0, 158, 161, 0.2); border-top: 3px solid var(--hisense-green); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .floating-action-button { position: fixed; bottom: 80px; right: 20px; width: 50px; height: 50px; background-color: var(--hisense-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 100; cursor: pointer; transition: all 0.3s ease; }
+        .floating-action-button:hover { transform: scale(1.1) rotate(90deg); box-shadow: 0 6px 15px rgba(0,0,0,0.25); }
+
+        .action-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; padding: 20px; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); transform: translateY(100%); transition: transform 0.3s ease; z-index: 200; }
+        .action-sheet.show { transform: translateY(0); }
+        .action-sheet-header { text-align: center; padding-bottom: 15px; border-bottom: 1px solid #eee; margin-bottom: 15px; position: relative; }
+        .action-sheet-close { position: absolute; right: 0; top: 0; background: none; border: none; font-size: 1.2rem; color: #999; }
+        .action-sheet-item { padding: 15px; text-align: center; border-bottom: 1px solid #eee; transition: background-color 0.2s ease; }
+        .action-sheet-item:last-child { border-bottom: none; }
+        .action-sheet-item:hover { background-color: #f9f9f9; }
+
+        .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 150; display: none; opacity: 0; transition: opacity 0.3s ease; }
+        .overlay.show { display: block; opacity: 1; }
+
+        /* 模态框样式 */
+        .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 300; width: 90%; max-width: 400px; display: none; opacity: 0; transition: all 0.3s ease; }
+        .modal.show { display: block; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        .modal-header { padding: 15px; border-bottom: 1px solid #eee; font-size: 1.1rem; font-weight: 500; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; font-size: 0.9rem; max-height: 60vh; overflow-y: auto; }
+        .modal-footer { padding: 15px; border-top: 1px solid #eee; text-align: right; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; color: #999; cursor: pointer; }
+
+        /* 产品配置器样式 */
+        .config-section { margin-bottom: 20px; }
+        .config-title { font-weight: 500; margin-bottom: 10px; color: var(--hisense-green); }
+        .config-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+        .config-option { border: 2px solid #e5e5e5; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; transition: all 0.3s ease; }
+        .config-option.selected { border-color: var(--hisense-green); background-color: rgba(0, 158, 161, 0.1); }
+        .config-option:hover { border-color: var(--hisense-green-light); }
+
+        /* 报价单样式 */
+        .quote-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .quote-total { font-size: 1.2rem; font-weight: bold; color: var(--hisense-green); }
+
+        /* 通知样式 */
+        .notification { position: fixed; top: 20px; right: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 15px; z-index: 400; transform: translateX(100%); transition: transform 0.3s ease; }
+        .notification.show { transform: translateX(0); }
+        .notification.success { border-left: 4px solid #10b981; }
+        .notification.error { border-left: 4px solid #ef4444; }
+        .notification.warning { border-left: 4px solid #f59e0b; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        <!-- 状态栏 -->
+        <div class="status-bar">
+            <span id="current-time">10:30</span>
+            <div><i class="fas fa-wifi"></i> <i class="fas fa-signal"></i> <i class="fas fa-battery-three-quarters"></i></div>
+        </div>
+        
+        <!-- 页面头部 -->
+        <header class="hisense-green p-4 flex justify-between items-center">
+            <div class="flex items-center">
+                <img src="./images/hisense-logo.jpg" alt="海信" class="h-6">
+                <span class="text-white ml-2 text-lg font-medium">SFA系统</span>
+            </div>
+            <div class="text-white flex items-center">
+                <i class="fas fa-bell mr-4 cursor-pointer" id="notification-bell"></i> 
+                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm cursor-pointer" id="user-profile">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="p-4">
+            <!-- 销售打卡模块 -->
+            <div id="check-in-module" class="module-content active">
+                <h2 class="text-lg font-medium mb-4">销售打卡</h2>
+                
+                <!-- 打卡状态卡片 -->
+                <div class="card p-4 mb-4">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="font-medium">今日打卡状态</h3>
+                            <p class="text-sm text-gray-500 mt-1" id="current-date">2025年8月1日 星期四</p>
+                        </div>
+                        <span class="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded" id="check-status">
+                            未完成
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="border border-gray-200 rounded-lg p-3">
+                            <p class="text-sm text-gray-500">上班打卡</p>
+                            <p class="text-xl font-bold text-red-500 mt-1" id="morning-status">未打卡</p>
+                            <button class="mt-3 w-full btn-primary" id="morning-checkin">
+                                立即打卡
+                            </button>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg p-3">
+                            <p class="text-sm text-gray-500">下班打卡</p>
+                            <p class="text-xl font-bold text-gray-400 mt-1" id="evening-status">未到时间</p>
+                            <button class="mt-3 w-full btn-disabled" id="evening-checkin" disabled>
+                                18:00后可打卡
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 text-sm text-gray-500 flex items-center">
+                        <i class="fas fa-map-marker-alt mr-2 text-hisense-green"></i>
+                        <span id="location-info">正在获取位置信息...</span>
+                    </div>
+                </div>
+                
+                <!-- 打卡记录 -->
+                <div class="card p-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-medium">近期打卡记录</h3>
+                        <button class="text-sm text-hisense-green" id="view-all-records">查看全部</button>
+                    </div>
+                    
+                    <div class="space-y-3" id="checkin-records">
+                        <!-- 打卡记录将由JS动态生成 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 用户管理模块 -->
+            <div id="user-management-module" class="module-content">
+                <div class="flex border-b mb-4">
+                    <div class="tab-btn active py-2 px-4 text-center flex-1" data-target="dealer-tab">经销商管理</div>
+                    <div class="tab-btn py-2 px-4 text-center flex-1" data-target="customer-tab">客户360°</div>
+                </div>
+                
+                <div id="dealer-tab" class="tab-panel active">
+                    <div class="search-box mb-4">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="搜索经销商名称、代码或地址" id="dealer-search">
+                    </div>
+                    
+                    <div class="filter-container">
+                        <div class="filter-title">
+                            <span>筛选条件</span>
+                            <button class="text-xs text-blue-500" id="reset-dealer-filter">重置</button>
+                        </div>
+                        <div class="filter-options" id="dealer-filter-options">
+                            <div class="filter-option active" data-filter="全部">全部</div>
+                            <div class="filter-option" data-filter="一级经销商">一级经销商</div>
+                            <div class="filter-option" data-filter="二级经销商">二级经销商</div>
+                            <div class="filter-option" data-filter="VIP">VIP</div>
+                            <div class="filter-option" data-filter="战略合作">战略合作</div>
+                        </div>
+                    </div>
+                    
+                    <div id="dealer-list-container">
+                        <!-- 经销商卡片将由JS动态生成 -->
+                    </div>
+                    
+                    <div id="dealer-list-loading" class="loading" style="display: none;">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button class="btn-outline mt-2 w-full" id="load-more-dealers">
+                            查看更多经销商 <i class="fas fa-chevron-down ml-1"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="floating-action-button" id="add-dealer-btn">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                </div>
+                
+                <div id="customer-tab" class="tab-panel">
+                    <div class="card p-4 mb-4">
+                        <h3 class="font-medium mb-3">客户信息总览</h3>
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <p class="text-sm text-gray-500">总客户数</p>
+                                <p class="text-2xl font-bold" id="total-customers">128</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">本月新增</p>
+                                <p class="text-2xl font-bold text-hisense-green" id="new-customers">12</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">活跃客户</p>
+                                <p class="text-2xl font-bold text-blue-500" id="active-customers">86</p>
+                            </div>
+                        </div>
+                        
+                        <div class="border-t pt-3">
+                            <canvas id="customerChart" height="150"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-medium">重点客户</h3>
+                            <button class="text-sm text-hisense-green" id="view-all-customers">查看全部</button>
+                        </div>
+                        
+                        <div class="space-y-3" id="key-customers">
+                            <!-- 重点客户将由JS动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 产品配置模块 -->
+            <div id="product-config-module" class="module-content">
+                <h2 class="text-lg font-medium mb-4">产品配置器</h2>
+                
+                <div class="card p-4 mb-4">
+                    <div class="config-section">
+                        <div class="config-title">选择产品类型</div>
+                        <div class="config-options" id="product-type-options">
+                            <div class="config-option" data-type="tv">
+                                <i class="fas fa-tv text-2xl mb-2"></i>
+                                <div>电视</div>
+                            </div>
+                            <div class="config-option" data-type="fridge">
+                                <i class="fas fa-snowflake text-2xl mb-2"></i>
+                                <div>冰箱</div>
+                            </div>
+                            <div class="config-option" data-type="washer">
+                                <i class="fas fa-tshirt text-2xl mb-2"></i>
+                                <div>洗衣机</div>
+                            </div>
+                            <div class="config-option" data-type="ac">
+                                <i class="fas fa-wind text-2xl mb-2"></i>
+                                <div>空调</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="config-section" id="size-section" style="display: none;">
+                        <div class="config-title">选择尺寸</div>
+                        <div class="config-options" id="size-options">
+                            <!-- 尺寸选项将由JS动态生成 -->
+                        </div>
+                    </div>
+                    
+                    <div class="config-section" id="features-section" style="display: none;">
+                        <div class="config-title">选择功能</div>
+                        <div class="config-options" id="features-options">
+                            <!-- 功能选项将由JS动态生成 -->
+                        </div>
+                    </div>
+                    
+                    <div class="config-section" id="color-section" style="display: none;">
+                        <div class="config-title">选择颜色</div>
+                        <div class="config-options" id="color-options">
+                            <!-- 颜色选项将由JS动态生成 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card p-4" id="config-summary" style="display: none;">
+                    <h3 class="font-medium mb-3">配置摘要</h3>
+                    <div id="config-details"></div>
+                    <div class="mt-4 pt-4 border-t">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-medium">预估价格：</span>
+                            <span class="text-2xl font-bold text-hisense-green" id="estimated-price">¥0</span>
+                        </div>
+                        <button class="btn-primary w-full" id="generate-quote">
+                            生成报价单
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 报价管理模块 -->
+            <div id="quote-module" class="module-content">
+                <h2 class="text-lg font-medium mb-4">报价管理</h2>
+                
+                <div class="card p-4 mb-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-medium">快速报价</h3>
+                        <button class="btn-outline text-sm" id="new-quote">新建报价</button>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">客户名称</label>
+                            <input type="text" class="w-full p-2 border border-gray-300 rounded" id="quote-customer" placeholder="输入客户名称">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">联系电话</label>
+                            <input type="tel" class="w-full p-2 border border-gray-300 rounded" id="quote-phone" placeholder="输入联系电话">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">产品需求</label>
+                            <textarea class="w-full p-2 border border-gray-300 rounded" rows="3" id="quote-requirements" placeholder="描述客户的产品需求"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card p-4 mb-4" id="quote-items-section" style="display: none;">
+                    <h3 class="font-medium mb-3">报价明细</h3>
+                    <div id="quote-items">
+                        <!-- 报价项目将由JS动态生成 -->
+                    </div>
+                    <div class="mt-4 pt-4 border-t">
+                        <div class="quote-item">
+                            <span>小计：</span>
+                            <span id="quote-subtotal">¥0</span>
+                        </div>
+                        <div class="quote-item">
+                            <span>税费：</span>
+                            <span id="quote-tax">¥0</span>
+                        </div>
+                        <div class="quote-item">
+                            <span class="font-bold">总计：</span>
+                            <span class="quote-total" id="quote-total">¥0</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 space-y-2">
+                        <button class="btn-primary w-full" id="save-quote">保存报价单</button>
+                        <button class="btn-outline w-full" id="send-quote">发送给客户</button>
+                    </div>
+                </div>
+                
+                <div class="card p-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-medium">历史报价</h3>
+                        <button class="text-sm text-hisense-green" id="view-all-quotes">查看全部</button>
+                    </div>
+                    <div id="quote-history">
+                        <!-- 历史报价将由JS动态生成 -->
+                    </div>
+                </div>
+            </div>
+            
+
+        </main>
+
+        <!-- 底部导航 -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex">
+            <div class="nav-item active" data-module="check-in-module">
+                <i class="fas fa-clock"></i>
+                <div>打卡</div>
+            </div>
+            <div class="nav-item" data-module="user-management-module">
+                <i class="fas fa-users"></i>
+                <div>客户</div>
+            </div>
+            <div class="nav-item" data-module="product-config-module">
+                <i class="fas fa-cog"></i>
+                <div>配置</div>
+            </div>
+            <div class="nav-item" data-module="quote-module">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <div>报价</div>
+            </div>
+
+        </nav>
+    </div>
+
+    <!-- 遮罩层 -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- 操作面板 -->
+    <div class="action-sheet" id="action-sheet">
+        <div class="action-sheet-header">
+            <h3>选择操作</h3>
+            <button class="action-sheet-close" id="close-action-sheet">&times;</button>
+        </div>
+        <div class="action-sheet-item" id="add-dealer-action">
+            <i class="fas fa-plus mr-2"></i>添加经销商
+        </div>
+        <div class="action-sheet-item" id="import-dealers-action">
+            <i class="fas fa-upload mr-2"></i>批量导入
+        </div>
+        <div class="action-sheet-item" id="export-dealers-action">
+            <i class="fas fa-download mr-2"></i>导出数据
+        </div>
+    </div>
+
+    <!-- 模态框 -->
+    <div class="modal" id="modal">
+        <div class="modal-header">
+            <span id="modal-title">标题</span>
+            <button class="modal-close" id="close-modal">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body">
+            内容
+        </div>
+        <div class="modal-footer">
+            <button class="btn-outline mr-2" id="modal-cancel">取消</button>
+            <button class="btn-primary" id="modal-confirm">确认</button>
+        </div>
+    </div>
+
+    <!-- 通知 -->
+    <div class="notification" id="notification">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span id="notification-text">操作成功</span>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
